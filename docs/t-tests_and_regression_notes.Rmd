@@ -1,0 +1,134 @@
+---
+title: "T-tests and regression"
+author: "Peter Geelan-Small"
+date: "09/06/2021"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, rows.print = 100)
+
+```
+
+
+
+```{r message = F, warning = F}
+
+library(tidyverse)
+library(jsonlite)
+library(janitor)
+
+```
+
+
+
+
+## Vittinghof, HERS clinical trial, Example 4.1, p. 70
+
+
+```{r}
+
+hers <- read.csv("../data/hersdata_ch3.csv")
+
+str(hers)
+                 
+```
+
+
+
+```{r}
+
+summary(hers)
+
+```
+
+
+There are blanks in the data (i.e. ""). This was discovered later. They need to be replaced with NA before converting variables to factors.
+
+```{r}
+
+hers[hers == ""] <- NA
+
+str(hers)
+
+```
+
+
+Convert all character variables to factors.
+
+```{r}
+
+hers <- 
+    hers %>%
+    mutate(across(where(is.character), as.factor))
+
+str(hers)
+
+```
+
+
+
+```{r}
+
+hers_no_diab <- 
+    hers %>%
+    filter(diabetes == "no")
+
+str(hers_no_diab)
+
+```
+
+
+
+```{r}
+
+hers.lm1 <- lm(glucose ~ exercise, data = hers_no_diab)
+
+summary(hers.lm1)
+
+```
+
+
+
+```{r}
+
+hers.lm2 <- lm(glucose ~ exercise + age + drinkany + BMI, 
+               data = hers_no_diab)
+
+summary(hers.lm2)
+
+```
+
+
+
+```{r}
+
+hers.lm3 <- lm(LDL ~ BMI , data = hers)
+
+summary(hers.lm3)
+
+```
+
+
+
+```{r}
+
+hers.lm4 <- lm(LDL ~ BMI + age + nonwhite + smoking + drinkany, 
+               data = hers)
+
+summary(hers.lm4)
+
+```
+
+
+
+```{r}
+
+hers.lm5 <- lm(LDL ~ BMI * nonwhite + age + smoking + drinkany, 
+               data = hers)
+
+summary(hers.lm5)
+
+```
+
