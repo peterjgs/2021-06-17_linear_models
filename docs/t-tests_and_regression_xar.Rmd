@@ -1,0 +1,465 @@
+---
+title: "$t$ test a special case of regression? Strange but true ..."
+author: "Peter Geelan-Small"
+date: "17/06/2021"
+output:
+  xaringan::moon_reader:
+    css: [default, metropolis, metropolis-fonts]
+    lib_dir: libs
+    self_contained: false
+    nature:
+      highlightStyle: github
+      countIncrementalSlides: false
+---
+
+
+```{r setup, include = F}
+
+knitr::opts_chunk$set(echo = F, fig.align = "center", 
+                      fig.asp = 1,
+                      echo = F, message = F, warning = F)
+
+```
+
+
+
+```{r xaringan-logo, echo = F}
+
+library(xaringanExtra)
+
+use_logo(
+  image_url = "StatsCentralLogo_rmd.png",
+  width = "110px",
+  height = "128px",
+  position = css_position(bottom = "-2.5em", left = "1em"),
+  link_url = NULL,
+  exclude_class = c("title-slide", "inverse", "hide_logo")
+)
+
+```
+
+
+
+```{r echo = F, message = F}
+
+library(RColorBrewer)
+library(wordcloud)
+library(tidyverse)
+library(ggpubr)
+library(GGally)
+library(plotly)
+library(reshape2)  ## For "acast"
+
+```
+
+
+<style type="text/css">
+.remark-slide-content {
+  font-size: 28px;
+  padding: 1em 1em 1em 1em;
+}
+</style>
+
+
+
+# Background
+
+-  Why think about link between $t$ test and regression?
+
+```{r}
+
+words_df <- read.csv("../data/stats_tests.csv", header = F)
+
+{{wordcloud(words = words_df[ , 1], freq = words_df[ , 2],
+          colors = brewer.pal(6, "Dark2"),
+          random.color = T,
+          scale = c(3, 1), rot.per = 1/4)}}
+
+```
+
+---
+
+
+# Data: HERS (Hulley et al. 1998)
+
+- Heart and Estrogen/progestin Replacement Study
+- Randomised controlled trial
+- Effect of estrogen/progestin on myocardial infarction and coronary heart disease events among older women
+- Reported association between coronary heart diesase events and hormone use
+- Conducted in the USA
+
+
+Data from: 
+
+Vittinghoff, E., 2012, *Regression Methods in Biostatistics*, Springer, 2nd ed. (https://regression.ucsf.edu)
+
+
+---
+
+# Data
+
+
+Data has 37 variables from 2,763 subjects
+
+```{r}
+
+hers <- read.csv("../data/hersdata_ch3.csv")
+
+## There are blanks in the data. Convert them to NAs
+
+hers[hers == ""] <- NA
+
+## Convert all character variables to factors
+
+hers <- 
+  hers %>%
+  mutate(across(where(is.character), as.factor))
+
+hers %>%
+  select(HT, age, BMI, drinkany, exercise, diabetes, glucose) %>%
+  str()
+
+```
+
+
+- Data for non-diabetics only will be used
+
+
+```{r eval = F}
+
+nom <- names(hers)[c(1, 2, 4, 5, 6, 7, 14, 18, 21, 28)]
+
+nom_tbl <- data.frame(cbind(nom[1:5], nom[6:10]))
+
+colnames(nom_tbl) <- NULL
+
+print(nom_tbl, row.names = F)
+
+```
+
+
+---
+
+# Modelling
+
+- Modelling here is not how you would start modelling this data in a sensible way
+- Sensible modelling starts with *research questions* and original *statistical analysis plan*
+- Models here are only examples for today's topic
+
+
+- Response variables we're looking at are continuous
+- For these continuous response variables, model with normal distribution assumption makes sense
+
+---
+
+# Simple linear regression
+
+
+```{r}
+
+hers_no_diab <- 
+  hers %>%
+  filter(diabetes == "no")
+
+```
+
+
+
+```{r eval = F}
+
+## Check for NAs
+
+summary(hers_no_diab)
+
+```
+
+
+```{r}
+
+## Remove rows with BMI values of NA
+
+hers_no_diab<-
+  hers_no_diab %>%
+  filter(is.na(BMI) == F)
+
+```
+
+- One continuous response variable, one continuous explanatory variable
+
+.pull-left[
+
+- Y variable: glucose
+- X variable: BMI (body mass index)
+
+]
+
+.pull-right[
+
+```{r fig.width = 5, fig.height = 5}
+
+ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
+  geom_point() +
+  theme_bw()
+
+```
+
+]
+
+
+---
+
+# Simple linear regression
+
+```{r}
+
+glu.lm1 <- lm(glucose ~ BMI, data = hers_no_diab)
+
+```
+
+
+*Assumptions:* Check constant variance and normal distribution. OK!
+
+
+```{r}
+
+res.glu1 <- data.frame(res = residuals(glu.lm1))
+
+res.fit.glu1 <- data.frame(res = res.glu1$res,
+                           fit = fitted(glu.lm1))
+
+```
+
+
+.pull-left[
+
+```{r}
+
+ggplot(res.fit.glu1, aes(x = fit, y = res)) +
+  geom_point() +
+  geom_hline(yintercept = 0, colour = "blue") +
+  theme_bw()
+
+```
+
+]
+
+
+.pull-right[
+
+```{r}
+
+ggplot(res.glu1, aes(sample = res)) +
+  stat_qq() +
+  stat_qq_line() +
+  theme_bw()
+
+```
+
+]
+
+
+```{r fig.width = 6, fig.height = 6, eval = F}
+
+res.glu1 <- data.frame(res = residuals(glu.lm1))
+
+res.fit.glu1 <- data.frame(res = res.glu1$res,
+                           fit = fitted(glu.lm1))
+
+glu1_p1 <- ggplot(res.fit.glu1, aes(x = fit, y = res)) +
+  geom_point() +
+  geom_hline(yintercept = 0, colour = "blue") +
+  theme_bw()
+  
+glu1_p2 <- ggplot(res.glu1, aes(sample = res)) +
+  stat_qq() +
+  stat_qq_line() +
+  theme_bw()
+
+ggarrange(glu1_p1, glu1_p2)
+
+#par(mfrow = c(1, 2))
+#{{plot(glu.lm1, which = 1)}}
+#{{plot(glu.lm1, which = 2)}}
+#par(mfrow = c(1, 1))
+    
+```
+
+
+---
+
+# Simple linear regression  
+  
+
+```{r}
+
+round(summary(glu.lm1)$coef, digits = 4)
+
+```
+
+Model equation:
+
+$$\small Y = \beta_0 + \beta_1 X_1$$
+
+$$\small \mathrm{glucose} = 83.2 + 0.49 \: \mathrm{BMI}$$
+
+---
+
+# Simple linear regression
+
+```{r out.width = "60%", message = F}
+
+glu1_p3 <- ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  theme_bw()
+
+suppressMessages(print(glu1_p3))
+
+```
+
+---
+
+# Simple linear regression
+
+.pull-left[
+
+What can we do with our model?
+
+-  Predict glucose from BMI
+
+- If BMI = 40, what is the predicted glucose level?
+
+$$\small \mathrm{glucose} =  83.2 + 0.49 \times 40 = 103$$
+]
+
+
+.pull-right[
+
+```{r}
+
+pred_df1 <- data.frame(x1 = 40, y1 = 45, x2 = 40, y2 = 103)
+
+pred_df2 <- data.frame(x1 = 12, y1 = 103, x2 = 40, y2 = 103)
+
+glu1_p3 + 
+  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
+               data = pred_df1, linetype = "dashed", colour = "red") +
+  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
+               data = pred_df2, linetype = "dashed", colour = "red")
+  
+
+```
+
+]
+
+
+
+---
+
+# Multivariable linear regression
+
+- Possibly *age* has an effect on glucose levels as well as BMI
+- Add *age* (continuous variable) to model
+
+```{r fig.width = 6, fig.height = 6, message = F}
+
+hers_no_diab %>%
+  select(age, BMI, glucose) %>%
+  ggpairs() +
+  theme_bw()
+
+```
+
+
+---
+
+# Multivariable linear regression
+
+```{r}
+
+glu.lm2 <- lm(glucose ~ age + BMI, data = hers_no_diab)
+
+round(summary(glu.lm2)$coef, digits = 4)
+
+```
+
+
+## Model equation
+
+
+$$\small Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2$$
+
+
+$$\small \mathrm{glucose} = 79.0 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
+
+---
+
+# Multivariable linear regression
+
+Fitted model with data
+
+```{r}
+
+xx <- seq(min(hers_no_diab$age), max(hers_no_diab$age),
+          length.out = 100)
+
+yy <- seq(min(hers_no_diab$BMI), max(hers_no_diab$BMI),
+          length.out = 100)
+
+surf_df <- expand.grid(age = xx, BMI = yy)
+
+surf_df$glucose <- predict.lm(glu.lm2, newdata = surf_df)
+
+## Rearrange x, y and z values into a matrix with "acast" 
+##   from "reshape2" (i.e. recast it as an array)
+
+surf_mat <- acast(surf_df, BMI ~ age, value.var = "glucose") ## y ~ x
+
+```
+
+
+
+```{r fig.align = "center"}
+
+## Construct plot of data points
+
+p_glu_age_bmi <- plot_ly(hers_no_diab,
+  x = ~ age,
+  y = ~ BMI,
+  z = ~ glucose,
+  type = "scatter3d",
+  mode = "markers",
+  size = 1, opacity = 0.3)
+
+## Add fitted model surface
+
+p_glu_age_bmi <- add_trace(
+  p = p_glu_age_bmi,
+  z = surf_mat,
+  x = xx,
+  y = yy,
+  type = "surface",
+  width = 300,
+  height = 300)
+
+p_glu_age_bmi
+
+```
+
+
+---
+
+# Multivariable linear regression
+
+Model equation
+
+$$\small \mathrm{glucose} = 79.0 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
+
+-  Person who is 60 years old with BMI of 40: glucose = 103
+
+$$\small \mathrm{glucose} = 79.0 + 0.06 \times 60 + 0.50 \times 40 = 103$$
+---
+
+# References
+
+Hulley, S. et al, 1998, Randomized trial of estrogen plus progestin for secondary prevention of coronary heart disease in postmenopausal women, *Journal of the American Medical Association* 280(7) 605-613
