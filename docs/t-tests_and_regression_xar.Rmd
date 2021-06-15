@@ -10,6 +10,7 @@ output:
     nature:
       highlightStyle: github
       countIncrementalSlides: false
+      beforeInit: "macros.js"
 ---
 
 
@@ -49,6 +50,7 @@ library(ggpubr)
 library(GGally)
 library(plotly)
 library(reshape2)  ## For "acast"
+library(png)
 
 ```
 
@@ -178,9 +180,15 @@ summary(hers_no_diab)
 
 ## Remove rows with BMI values of NA
 
-hers_no_diab<-
+hers_no_diab <-
   hers_no_diab %>%
   filter(is.na(BMI) == F)
+
+## Remove data point with glucose < 60 to make plots clearer
+
+hers_no_diab <-
+  hers_no_diab %>%
+  filter(glucose > 60)
 
 ```
 
@@ -300,7 +308,7 @@ Model equation:
 
 $$\small Y = \beta_0 + \beta_1 X_1$$
 
-$$\small \mathrm{glucose} = 83.2 + 0.49 \: \mathrm{BMI}$$
+$$\small \mathrm{glucose} = 83.3 + 0.48 \: \mathrm{BMI}$$
 
 ---
 
@@ -329,25 +337,28 @@ What can we do with our model?
 
 - If BMI = 40, what is the predicted glucose level?
 
-$$\small \mathrm{glucose} =  83.2 + 0.49 \times 40 = 103$$
+$$\small \mathrm{glucose} =  83.3 + 0.48 \times 40 = 103$$
 ]
 
 
 .pull-right[
 
-```{r}
+```{r message = F}
 
-pred_df1 <- data.frame(x1 = 40, y1 = 45, x2 = 40, y2 = 103)
+pred_df1 <- data.frame(x1 = 40, y1 = 65, x2 = 40, y2 = 103)
 
 pred_df2 <- data.frame(x1 = 12, y1 = 103, x2 = 40, y2 = 103)
 
-glu1_p3 + 
+glu1_p4 <- glu1_p3 + 
   geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
-               data = pred_df1, linetype = "dashed", colour = "red") +
+               data = pred_df1, linetype = "dashed", 
+               colour = "red") +
   geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
-               data = pred_df2, linetype = "dashed", colour = "red")
-  
+               data = pred_df2, linetype = "dashed", 
+               colour = "red")
 
+suppressMessages(print(glu1_p4))
+  
 ```
 
 ]
@@ -390,7 +401,7 @@ round(summary(glu.lm2)$coef, digits = 4)
 $$\small Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2$$
 
 
-$$\small \mathrm{glucose} = 79.0 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
+$$\small \mathrm{glucose} = 79.2 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
 
 ---
 
@@ -413,13 +424,14 @@ surf_df$glucose <- predict.lm(glu.lm2, newdata = surf_df)
 ## Rearrange x, y and z values into a matrix with "acast" 
 ##   from "reshape2" (i.e. recast it as an array)
 
-surf_mat <- acast(surf_df, BMI ~ age, value.var = "glucose") ## y ~ x
+surf_mat <- acast(surf_df, BMI ~ age, value.var = "glucose") 
+## y ~ x
 
 ```
 
 
 
-```{r fig.align = "center"}
+```{r}
 
 ## Construct plot of data points
 
@@ -438,9 +450,7 @@ p_glu_age_bmi <- add_trace(
   z = surf_mat,
   x = xx,
   y = yy,
-  type = "surface",
-  width = 300,
-  height = 300)
+  type = "surface")
 
 p_glu_age_bmi
 
@@ -453,11 +463,195 @@ p_glu_age_bmi
 
 Model equation
 
-$$\small \mathrm{glucose} = 79.0 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
+$$\small \mathrm{glucose} = 79.2 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
 
--  Person who is 60 years old with BMI of 40: glucose = 103
+-  Person who is 60 years old with BMI of 40: glucose = 102
 
-$$\small \mathrm{glucose} = 79.0 + 0.06 \times 60 + 0.50 \times 40 = 103$$
+$$\small \mathrm{glucose} = 79.2 + 0.06 \times 60 + 0.50 \times 40 = 102$$
+
+---
+
+# Multivariable linear regression
+
+-  Does exercise affect glucose level while adjusting for BMI?
+
+```{r}
+
+glu3_p1 <- ggplot(hers_no_diab, aes(x = BMI, y = glucose, 
+                                    colour = exercise)) +
+  geom_point() +
+  theme_bw()
+
+suppressMessages(print(glu3_p1))
+
+```
+
+
+
+---
+
+# Multivariable linear regression
+
+How do BMI and exercise fit together in their effect on glucose?
+
+```{r eval = F}
+
+## Make this graph and then put "eval = F"!
+
+bmi <- seq(from = 15, to = 50, length.out = 70)
+
+
+glu_comm <- 83 + 0.5 * bmi
+
+glu_para_ex_n <- 86 + 0.5 * bmi
+
+glu_para_ex_y <- 82 + 0.5 * bmi
+
+glu_sep_ex_n <- 85 + 0.7 * bmi
+
+glu_sep_ex_y <- 81 + 0.4 * bmi
+
+
+df_comm <- data.frame(BMI = bmi, glucose = glu_comm)
+
+df_para <- data.frame(BMI = c(bmi, bmi), 
+                      glucose = c(glu_para_ex_n, glu_para_ex_y),
+                      exercise = rep(c("no", "yes"), each = 70))
+
+df_para$exercise <- factor(df_para$exercise)
+
+df_sep <- data.frame(BMI = c(bmi, bmi), 
+                      glucose = c(glu_sep_ex_n, glu_sep_ex_y),
+                      exercise = rep(c("no", "yes"), each = 70))
+
+df_sep$exercise <- factor(df_sep$exercise)
+
+p_comm <- 
+  ggplot(df_comm, aes(x = BMI, y = glucose)) +
+  geom_line(colour = "#bb8844", size = 1.5) +
+  ylim(85, 120) +
+  ggtitle("Common line") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 10))
+
+p_para <- 
+  ggplot(df_para, aes(x = BMI, y = glucose, colour = exercise)) +
+  geom_line(size = 1.5) +
+  ylim(85, 120) +
+  ggtitle("Parallel lines") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(legend.position = "none")
+
+p_sep <- 
+  ggplot(df_sep, aes(x = BMI, y = glucose, colour = exercise)) +
+  geom_line(size = 1.5) +
+  ylim(85, 120) +
+  ggtitle("Separate intercepts & slopes") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 10))
+
+png(filename = "p_all_reg.png",
+    width = 500, height = 350)
+
+ggarrange(p_comm, p_para, p_sep, ncol = 3, common.legend = T)
+
+dev.off()
+
+```
+
+
+.center[![:scale 75%](p_all_reg.png)]
+
+---
+
+# Multivariable linear regression
+
+-  We'll model the relationship with parallel lines
+-  Model equation - two predictor variables:
+    -  BMI - continuous
+    -  exercise - categorical (no/yes coded as 0/1)
+    
+$$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{BMI} + \beta_2 \: \mathrm{exer}_{\mathrm{yes}}$$
+For exercise = no (i.e. 0): $$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{BMI}$$
+
+For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{BMI} + \beta_2 \;\;\; \mathrm{or} \;\;\; \mathrm{glucose} = (\beta_0 + \beta_2) + \beta_1 \: \mathrm{BMI}$$
+
+---
+
+# Multivariable linear regression
+
+
+```{r}
+
+glu.lm3 <- lm(glucose ~ BMI + exercise, data = hers_no_diab)
+
+round(summary(glu.lm3)$coef[ , -c(4:5)], digits = 3)
+
+```
+
+
+For exercise = no (i.e. 0): $$\small \mathrm{glucose} = 84.0 + 0.47 \: \mathrm{BMI}$$
+
+For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = 84.02 + 0.47 \: \mathrm{BMI} - 0.87 \;\;\; \mathrm{or} \;\;\; \mathrm{glucose} = 83.2 + 0.47 \: \mathrm{BMI}$$
+
+---
+
+# Predictor: categorical, two groups
+
+Does exercise alone affect glucose level?
+
+
+```{r}
+
+ggplot(hers_no_diab, aes(x = exercise, y = glucose)) +
+  geom_boxplot(outlier.shape = NA) +  
+  # avoid plotting outliers twice
+  geom_jitter(position = position_jitter(width = 0.3, height = 0),
+              alpha = 0.3) +
+  theme_bw()
+
+```
+
+
+---
+
+# Predictor: categorical, two groups
+
+
+-  Y variable: glucose
+-  X variable: exercise - categorical (no/yes coded as 0/1)
+
+Model equation
+
+$$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{exer}_{\mathrm{yes}}$$
+
+```{r}
+
+glu.lm4 <- lm(glucose ~ exercise, data = hers_no_diab)
+
+round(summary(glu.lm4)$coef[ , -c(4:5)], digits = 3)
+
+```
+
+For exercise = no: $\;\;$ Est. mean glucose = 97.4
+
+For exercise = yes: $\;$ Est. mean glucose = 97.37 - 1.64 = 95.7
+
+---
+
+# Predictor: categorical, two groups
+
+$t$ test
+
+```{r}
+
+t.test(glucose ~ exercise, data = hers_no_diab, var.equal = T)
+
+```
+
+
+
 ---
 
 # References
