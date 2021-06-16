@@ -6,7 +6,7 @@ output:
   xaringan::moon_reader:
     css: [default, metropolis, metropolis-fonts]
     lib_dir: libs
-    self_contained: false
+    self_contained: true
     nature:
       highlightStyle: github
       countIncrementalSlides: false
@@ -71,6 +71,8 @@ library(emmeans)
 Why think about link between $t$ test and regression?
 
 ```{r}
+
+#words_df <- read.csv("../data/stats_tests.csv", header = F)
 
 words_df <- read.csv("../data/stats_tests.csv", header = F)
 
@@ -287,33 +289,6 @@ ggplot(res.glu1, aes(sample = res)) +
 ]
 
 
-```{r fig.width = 6, fig.height = 6, eval = F}
-
-res.glu1 <- data.frame(res = residuals(glu.lm1))
-
-res.fit.glu1 <- data.frame(res = res.glu1$res,
-                           fit = fitted(glu.lm1))
-
-glu1_p1 <- ggplot(res.fit.glu1, aes(x = fit, y = res)) +
-  geom_point() +
-  geom_hline(yintercept = 0, colour = "blue") +
-  theme_bw()
-  
-glu1_p2 <- ggplot(res.glu1, aes(sample = res)) +
-  stat_qq() +
-  stat_qq_line() +
-  theme_bw()
-
-ggarrange(glu1_p1, glu1_p2)
-
-#par(mfrow = c(1, 2))
-#{{plot(glu.lm1, which = 1)}}
-#{{plot(glu.lm1, which = 2)}}
-#par(mfrow = c(1, 1))
-    
-```
-
-
 ---
 
 # Simple linear regression  
@@ -368,7 +343,7 @@ pred_df2 <- data.frame(x1 = 14, y1 = 102.7,
 
 glu1_p3 <-
   ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
-  geom_point() +
+  geom_point(colour = "#884422", size = 1) +
   geom_smooth(method = "lm", se = F) +
   scale_x_continuous(expand = c(0.01, 0.05)) +
   scale_y_continuous(expand = c(0.01, 0.05)) +
@@ -377,10 +352,10 @@ glu1_p3 <-
 glu1_p4 <- glu1_p3 + 
   geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
                data = pred_df1, linetype = "dashed", 
-               colour = "red") +
+               colour = "gray20") +
   geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
                data = pred_df2, linetype = "dashed", 
-               colour = "red")
+               colour = "gray20")
 
 suppressMessages(print(glu1_p4))
   
@@ -529,30 +504,24 @@ p_glu_age_bmi
 *Does exercise affect glucose level while adjusting for BMI?* (ANCOVA)
 
 
-```{r}
+```{r eval = F, message = F, warning = F}
 
 ## Make this graph and then put "eval = F"!
 
-glu3_p1 <- ggplot(hers_no_diab, 
-                  aes(x = BMI, y = glucose, 
-                      colour = exercise)) +
+#glu3_p1 <- ggplot(hers_no_diab, 
+ggplot(hers_no_diab,
+       aes(x = BMI, y = glucose, colour = exercise)) +
   geom_point(size = 1) +
   theme_bw()
 
 #suppressMessages(print(glu3_p1))
 
-
-png(filename = "glu3_p1.png",
-    width = 500, height = 350)
-
-print(glu3_p1)
-
-dev.off()
+ggsave("docs/glu3_p1.png", width = 6, height = 5, units = "in")
 
 ```
 
 
-.center[![:scale 75%](glu3_p1.png)]
+.center[![:scale 50%](glu3_p1.png)]
 
 
 ---
@@ -672,7 +641,9 @@ For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = 84.02 + 0.47 \, \mathrm{
 
 *Fitted model with data*
 
-```{r}
+```{r eval = F}
+
+## Make this graph and then put "eval = F"!
 
 hers_no_diab$pred3 <- predict(glu.lm3)
 
@@ -682,8 +653,12 @@ ggplot(hers_no_diab, aes(x = BMI, y = glucose,
   geom_line(aes(y = pred3), size = 1) +
   theme_bw()
 
+ggsave("docs/glu3_p2.png", width = 5, height = 5, units = "in")
+
 ```
 
+
+.center[![:scale 50%](glu3_p2.png)]
 
 ---
 
@@ -692,7 +667,7 @@ ggplot(hers_no_diab, aes(x = BMI, y = glucose,
 *Does exercise alone affect glucose level?* (*t* test)
 
 
-```{r}
+```{r eval = F}
 
 ggplot(hers_no_diab, aes(x = exercise, y = glucose)) +
   geom_boxplot(outlier.shape = NA) +  
@@ -701,8 +676,12 @@ ggplot(hers_no_diab, aes(x = exercise, y = glucose)) +
               alpha = 0.3, colour = "#884422") +
   theme_bw()
 
+ggsave("docs/glu4_p1.png", width = 5, height = 5, units = "in")
+
 ```
 
+
+.center[![:scale 50%](glu4_p1.png)]
 
 ---
 
@@ -784,7 +763,7 @@ hers_no_diab$physactive <- factor(
 
 
 
-```{r}
+```{r eval = F}
 
 ggplot(hers_no_diab, aes(x = physactive, y = glucose)) +
   geom_boxplot(outlier.shape = NA) +  
@@ -793,7 +772,12 @@ ggplot(hers_no_diab, aes(x = physactive, y = glucose)) +
               alpha = 0.3, colour = "#884422") +
   theme_bw()
 
+ggsave("docs/glu5_p1.png", width = 5, height = 5, units = "in")
+
 ```
+
+
+.center[![:scale 47%](glu5_p1.png)]
 
 
 ---
