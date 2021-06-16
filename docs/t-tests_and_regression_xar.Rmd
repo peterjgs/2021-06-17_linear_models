@@ -1,6 +1,6 @@
 ---
 title: "$t$ test a special case of regression? Strange but true ..."
-author: "Peter Geelan-Small"
+author: "Peter Geelan-Small - Stats Central, UNSW"
 date: "17/06/2021"
 output:
   xaringan::moon_reader:
@@ -51,6 +51,8 @@ library(GGally)
 library(plotly)
 library(reshape2)  ## For "acast"
 library(png)
+library(kableExtra)
+library(emmeans)
 
 ```
 
@@ -66,7 +68,7 @@ library(png)
 
 # Background
 
--  Why think about link between $t$ test and regression?
+Why think about link between $t$ test and regression?
 
 ```{r}
 
@@ -79,27 +81,50 @@ words_df <- read.csv("../data/stats_tests.csv", header = F)
 
 ```
 
+
 ---
 
+# Statistical modelling
 
-# Data: HERS (Hulley et al. 1998)
+- Sensible modelling starts with *research questions* and *statistical analysis plan* written at start of study
+- Not so useful to ask, "What statistical tests do I need to use?"
+    - "Flowchart" approach - hides unity behind "different" methods
+- Better to ask first, "How can I use the variables in my data to answer my research questions?"
+    - Focus on relationships between variables
+    - Helps you see not so many "different" methods after all!
 
-- Heart and Estrogen/progestin Replacement Study
-- Randomised controlled trial
-- Effect of estrogen/progestin on myocardial infarction and coronary heart disease events among older women
-- Reported association between coronary heart diesase events and hormone use
-- Conducted in the USA
+---
+
+# Outline
+
+- Data for examples
+    - Randomised controlled trial
+    - Effect of hormones on preventing heart disease events among older women (Heart and Estrogen/progestin Replacement Study (HERS) (Hulley et al. 1998)
+    - Data available through Vittinghoff (2012)
+- Example models
+    - Regression to $t$ tests
+    - Model equations
+- What makes a linear model *linear*?
+- Why there might be fewer statistical methods than you think!
 
 
-Data from: 
+---
 
-Vittinghoff, E., 2012, *Regression Methods in Biostatistics*, Springer, 2nd ed. (https://regression.ucsf.edu)
+# Outline
+
+## Note
+
+- Modelling here does not follow a sensible statistical analysis plan
+- Models shown are only examples for today's topic
+- Response variables we're looking at are continuous
+    - For these continuous response variables, model with normal distribution assumption makes sense
+- Assumptions for all models should be checked - only first one done here
+
 
 
 ---
 
 # Data
-
 
 Data has 37 variables from 2,763 subjects
 
@@ -127,37 +152,12 @@ hers %>%
 - Data for non-diabetics only will be used
 
 
-```{r eval = F}
-
-nom <- names(hers)[c(1, 2, 4, 5, 6, 7, 14, 18, 21, 28)]
-
-nom_tbl <- data.frame(cbind(nom[1:5], nom[6:10]))
-
-colnames(nom_tbl) <- NULL
-
-print(nom_tbl, row.names = F)
-
-```
-
-
----
-
-# Modelling
-
-- Modelling here is not how you would start modelling this data in a sensible way
-- Sensible modelling starts with *research questions* and original *statistical analysis plan*
-- Models here are only examples for today's topic
-
-
-- Response variables we're looking at are continuous
-- For these continuous response variables, model with normal distribution assumption makes sense
-
----
-
-# Simple linear regression
-
 
 ```{r}
+
+######
+###### Set up the data needed here
+######
 
 hers_no_diab <- 
   hers %>%
@@ -176,6 +176,7 @@ summary(hers_no_diab)
 ```
 
 
+
 ```{r}
 
 ## Remove rows with BMI values of NA
@@ -192,12 +193,22 @@ hers_no_diab <-
 
 ```
 
-- One continuous response variable, one continuous explanatory variable
+---
+
+# Simple linear regression
+
+*Can BMI (body mass index) predict baseline glucose level?*
 
 .pull-left[
 
-- Y variable: glucose
-- X variable: BMI (body mass index)
+- Response: glucose - continuous
+- Predictor: BMI - continuous
+- Model assuming normal distribution
+- Straight-line model
+
+*Model equation*
+
+$$\small Y = \beta_0 + \beta_1 X_1$$
 
 ]
 
@@ -206,7 +217,7 @@ hers_no_diab <-
 ```{r fig.width = 5, fig.height = 5}
 
 ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
-  geom_point() +
+  geom_point(colour = "#884422", size = 1) +
   theme_bw()
 
 ```
@@ -221,6 +232,15 @@ ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
 ```{r}
 
 glu.lm1 <- lm(glucose ~ BMI, data = hers_no_diab)
+
+
+## Check quadratic term
+
+#hers_no_diab$BMI_sq <- hers_no_diab$BMI^2
+
+#glu.lm11 <- lm(glucose ~ BMI + BMI_sq, data = hers_no_diab)
+
+#anova(glu.lm1, glu.lm11) ## No diff. between models
 
 ```
 
@@ -243,8 +263,9 @@ res.fit.glu1 <- data.frame(res = res.glu1$res,
 ```{r}
 
 ggplot(res.fit.glu1, aes(x = fit, y = res)) +
-  geom_point() +
+  geom_point(size = 1) +
   geom_hline(yintercept = 0, colour = "blue") +
+  labs(x = "Fitted values", y = "Residuals") +
   theme_bw()
 
 ```
@@ -304,38 +325,32 @@ round(summary(glu.lm1)$coef, digits = 4)
 
 ```
 
-Model equation:
+BMI is a useful predictor but model not very good (low $R^2$).
 
-$$\small Y = \beta_0 + \beta_1 X_1$$
+*Fitted model*
 
-$$\small \mathrm{glucose} = 83.3 + 0.48 \: \mathrm{BMI}$$
+$$\small \mathrm{glucose} = 83.3 + 0.48 \, \mathrm{BMI}$$
 
 ---
 
 # Simple linear regression
 
-```{r out.width = "60%", message = F}
+```{r}
 
-glu1_p3 <- ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = F) +
-  theme_bw()
+nd <- data.frame(BMI = 40)
 
-suppressMessages(print(glu1_p3))
+pred_bmi_40 <- predict(glu.lm1, newdata = nd)
 
 ```
 
----
-
-# Simple linear regression
 
 .pull-left[
 
-What can we do with our model?
+What can we do with our fitted model?
 
 -  Predict glucose from BMI
 
-- If BMI = 40, what is the predicted glucose level?
+- If BMI = 40, what is the predicted mean glucose level?
 
 $$\small \mathrm{glucose} =  83.3 + 0.48 \times 40 = 103$$
 ]
@@ -345,9 +360,19 @@ $$\small \mathrm{glucose} =  83.3 + 0.48 \times 40 = 103$$
 
 ```{r message = F}
 
-pred_df1 <- data.frame(x1 = 40, y1 = 65, x2 = 40, y2 = 103)
+pred_df1 <- data.frame(x1 = 40, y1 = 65, 
+                       x2 = 40, y2 = pred_bmi_40)
 
-pred_df2 <- data.frame(x1 = 12, y1 = 103, x2 = 40, y2 = 103)
+pred_df2 <- data.frame(x1 = 14, y1 = 102.7, 
+                       x2 = 40, y2 = pred_bmi_40)
+
+glu1_p3 <-
+  ggplot(hers_no_diab, aes(x = BMI, y = glucose)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  scale_x_continuous(expand = c(0.01, 0.05)) +
+  scale_y_continuous(expand = c(0.01, 0.05)) +
+  theme_bw()
 
 glu1_p4 <- glu1_p3 + 
   geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), 
@@ -363,16 +388,31 @@ suppressMessages(print(glu1_p4))
 
 ]
 
+---
+
+# What is "linear"?
+
+- "Linear" means straight line. No argument!
+- Linear regression model means right-hand side of equation is a linear combination of predictors (i.e. pattern is: *parameter1* $\times$ *predictor1* + *parameter2* $\times$ *predictor2* + ... )
+
+- Both these are linear models:
+
+$$\small \mathrm{glucose} =  \beta_0 + \beta_1 \, \mathrm{BMI}$$
+$$\small \mathrm{glucose} =  \beta_0 + \beta_1 \, \mathrm{BMI}+ \beta_2 \, \mathrm{BMI}^2$$
+
+- This is not a linear model:
+
+$$\small \mathrm{glucose} =  \beta_0 \, \mathrm{BMI}^{\, \beta_1}$$
 
 
 ---
 
 # Multivariable linear regression
 
-- Possibly *age* has an effect on glucose levels as well as BMI
-- Add *age* (continuous variable) to model
+*Is age a useful predictor of glucose level as well as BMI?*
 
-```{r fig.width = 6, fig.height = 6, message = F}
+
+```{r eval = F, message = F}
 
 hers_no_diab %>%
   select(age, BMI, glucose) %>%
@@ -382,32 +422,57 @@ hers_no_diab %>%
 ```
 
 
+```{r}
+
+hers_no_diab %>%
+  select(age, BMI, glucose) %>%
+  pairs()
+
+```
+
+
 ---
 
 # Multivariable linear regression
 
+- Add *age* (continuous variable) to model
+
+*Model equation*
+
+$$\small \mathrm{glucose} = \beta_0 + \beta_1 \, \mathrm{BMI} + \beta_2 \, \mathrm{age}$$
+
+
 ```{r}
 
-glu.lm2 <- lm(glucose ~ age + BMI, data = hers_no_diab)
+glu.lm2 <- lm(glucose ~ BMI + age, data = hers_no_diab)
 
 round(summary(glu.lm2)$coef, digits = 4)
 
 ```
 
 
-## Model equation
+*Fitted model*
 
-
-$$\small Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2$$
-
-
-$$\small \mathrm{glucose} = 79.2 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
+$$\small \mathrm{glucose} = 79.2 + 0.50 \, \mathrm{BMI} + 0.06 \, \mathrm{age}$$
 
 ---
 
 # Multivariable linear regression
 
-Fitted model with data
+*Fitted model*
+
+$$\small \mathrm{glucose} = 79.2 + 0.06 \, \mathrm{age} + 0.50 \, \mathrm{BMI}$$
+
+-  Person who is 60 years old with BMI of 40: glucose = 102
+
+$$\small \mathrm{glucose} = 79.2 + 0.06 \times 60 + 0.50 \times 40 = 102$$
+
+
+---
+
+# Multivariable linear regression
+
+*Fitted model with data*
 
 ```{r}
 
@@ -461,31 +526,33 @@ p_glu_age_bmi
 
 # Multivariable linear regression
 
-Model equation
+*Does exercise affect glucose level while adjusting for BMI?* (ANCOVA)
 
-$$\small \mathrm{glucose} = 79.2 + 0.06 \: \mathrm{age} + 0.50 \: \mathrm{BMI}$$
-
--  Person who is 60 years old with BMI of 40: glucose = 102
-
-$$\small \mathrm{glucose} = 79.2 + 0.06 \times 60 + 0.50 \times 40 = 102$$
-
----
-
-# Multivariable linear regression
-
--  Does exercise affect glucose level while adjusting for BMI?
 
 ```{r}
 
-glu3_p1 <- ggplot(hers_no_diab, aes(x = BMI, y = glucose, 
-                                    colour = exercise)) +
-  geom_point() +
+## Make this graph and then put "eval = F"!
+
+glu3_p1 <- ggplot(hers_no_diab, 
+                  aes(x = BMI, y = glucose, 
+                      colour = exercise)) +
+  geom_point(size = 1) +
   theme_bw()
 
-suppressMessages(print(glu3_p1))
+#suppressMessages(print(glu3_p1))
+
+
+png(filename = "glu3_p1.png",
+    width = 500, height = 350)
+
+print(glu3_p1)
+
+dev.off()
 
 ```
 
+
+.center[![:scale 75%](glu3_p1.png)]
 
 
 ---
@@ -507,9 +574,9 @@ glu_para_ex_n <- 86 + 0.5 * bmi
 
 glu_para_ex_y <- 82 + 0.5 * bmi
 
-glu_sep_ex_n <- 85 + 0.7 * bmi
+glu_sep_ex_n <- 84 + 0.7 * bmi
 
-glu_sep_ex_y <- 81 + 0.4 * bmi
+glu_sep_ex_y <- 83 + 0.4 * bmi
 
 
 df_comm <- data.frame(BMI = bmi, glucose = glu_comm)
@@ -567,15 +634,15 @@ dev.off()
 
 # Multivariable linear regression
 
--  We'll model the relationship with parallel lines
--  Model equation - two predictor variables:
-    -  BMI - continuous
-    -  exercise - categorical (no/yes coded as 0/1)
-    
-$$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{BMI} + \beta_2 \: \mathrm{exer}_{\mathrm{yes}}$$
-For exercise = no (i.e. 0): $$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{BMI}$$
+*Model equation (parallel lines) - two predictor variables*
 
-For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{BMI} + \beta_2 \;\;\; \mathrm{or} \;\;\; \mathrm{glucose} = (\beta_0 + \beta_2) + \beta_1 \: \mathrm{BMI}$$
+-  BMI - continuous
+-  exercise - categorical (no/yes coded as 0/1)
+    
+$$\small \mathrm{glucose} = \beta_0 + \beta_1 \, \mathrm{BMI} + \beta_2 \, \mathrm{exer}_{\mathrm{yes}}$$
+For exercise = no (i.e. 0): $$\small \mathrm{glucose} = \beta_0 + \beta_1 \, \mathrm{BMI}$$
+
+For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = \beta_0 + \beta_1 \, \mathrm{BMI} + \beta_2 \;\;\; \mathrm{or} \;\;\; \mathrm{glucose} = (\beta_0 + \beta_2) + \beta_1 \, \mathrm{BMI}$$
 
 ---
 
@@ -590,16 +657,39 @@ round(summary(glu.lm3)$coef[ , -c(4:5)], digits = 3)
 
 ```
 
+*Fitted model*
 
-For exercise = no (i.e. 0): $$\small \mathrm{glucose} = 84.0 + 0.47 \: \mathrm{BMI}$$
+$$\small \mathrm{glucose} = 84.0 + 0.47 \, \mathrm{BMI} -0.87 \, \mathrm{exer}_{\mathrm{yes}}$$
 
-For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = 84.02 + 0.47 \: \mathrm{BMI} - 0.87 \;\;\; \mathrm{or} \;\;\; \mathrm{glucose} = 83.2 + 0.47 \: \mathrm{BMI}$$
+For exercise = no (i.e. 0): $$\small \mathrm{glucose} = 84.0 + 0.47 \, \mathrm{BMI}$$
+
+For exercise = yes (i.e. 1):$$\small \mathrm{glucose} = 84.02 + 0.47 \, \mathrm{BMI} - 0.87 \;\;\; \mathrm{or} \;\;\; \mathrm{glucose} = 83.2 + 0.47 \, \mathrm{BMI}$$
+
 
 ---
 
-# Predictor: categorical, two groups
+# Multivariable linear regression
 
-Does exercise alone affect glucose level?
+*Fitted model with data*
+
+```{r}
+
+hers_no_diab$pred3 <- predict(glu.lm3)
+
+ggplot(hers_no_diab, aes(x = BMI, y = glucose, 
+                         colour = exercise)) +
+  geom_point(size = 1) + 
+  geom_line(aes(y = pred3), size = 1) +
+  theme_bw()
+
+```
+
+
+---
+
+# Predictor: categorical, two groups - *t* test
+
+*Does exercise alone affect glucose level?* (*t* test)
 
 
 ```{r}
@@ -608,7 +698,7 @@ ggplot(hers_no_diab, aes(x = exercise, y = glucose)) +
   geom_boxplot(outlier.shape = NA) +  
   # avoid plotting outliers twice
   geom_jitter(position = position_jitter(width = 0.3, height = 0),
-              alpha = 0.3) +
+              alpha = 0.3, colour = "#884422") +
   theme_bw()
 
 ```
@@ -616,15 +706,15 @@ ggplot(hers_no_diab, aes(x = exercise, y = glucose)) +
 
 ---
 
-# Predictor: categorical, two groups
+# Predictor: categorical, two groups - *t* test
 
 
--  Y variable: glucose
--  X variable: exercise - categorical (no/yes coded as 0/1)
+-  Response: glucose
+-  Predictor: exercise - categorical (no/yes coded as 0/1)
 
-Model equation
+*Model equation (two parameters)*
 
-$$\small \mathrm{glucose} = \beta_0 + \beta_1 \: \mathrm{exer}_{\mathrm{yes}}$$
+$$\small \mathrm{glucose} = \beta_0 + \beta_1 \, \mathrm{exer}_{\mathrm{yes}}$$
 
 ```{r}
 
@@ -640,9 +730,8 @@ For exercise = yes: $\;$ Est. mean glucose = 97.37 - 1.64 = 95.7
 
 ---
 
-# Predictor: categorical, two groups
+# Predictor: categorical, two groups - *t* test
 
-$t$ test
 
 ```{r}
 
@@ -650,10 +739,178 @@ t.test(glucose ~ exercise, data = hers_no_diab, var.equal = T)
 
 ```
 
+$t$ test is just a linear model
+
+- Special case - one categorical predictor variable with two groups
+
+---
+
+# What's missing? ANOVA!
+
+*Does a subject's physical activity level compared to other women of similar age help to explain glucose level?*
+
+
+```{r}
+
+## Rename and reorder levels of "physact"
+
+#levels(hers_no_diab$physact)
+
+## Levels in orig. data are:
+
+# [1] "about as active"      "much less active"    
+# [3] "much more active"     "somewhat less active"
+# [5] "somewhat more active"
+
+## Rename
+
+hers_no_diab$physactive <- factor(
+  hers_no_diab$physact, 
+  labels = c("equal", "much_less", "much_more", "less", "more")
+  )
+
+#data.frame(orig = hers_no_diab$physact[1:20],
+#           new = hers_no_diab$physactive[1:20])
+
+## Re-order
+
+hers_no_diab$physactive <- factor(
+  hers_no_diab$physactive, 
+  levels = c("much_less", "less", "equal", "more", "much_more"))
+
+#levels(hers_no_diab$physactive)
+       
+```
+
+
+
+```{r}
+
+ggplot(hers_no_diab, aes(x = physactive, y = glucose)) +
+  geom_boxplot(outlier.shape = NA) +  
+  # avoid plotting outliers twice
+  geom_jitter(position = position_jitter(width = 0.3, height = 0),
+              alpha = 0.3, colour = "#884422") +
+  theme_bw()
+
+```
 
 
 ---
 
+# What's missing? ANOVA!
+
+
+-  Response: glucose
+-  Predictor: physical activity - categorical (5 categories)
+
+*Model equation (five parameters, four variables)*
+
+$$\beta_0 \;\;\; \mathrm{much\_less}$$
+$$X_\mathrm{less} \;\;\; \mathrm{less - coded \; as \; 0/1}$$
+
+$$X_\mathrm{eq} \;\;\; \mathrm{equal - coded \; as \; 0/1}$$
+$$\mathrm{etc.}$$
+
+$$\small \mathrm{glucose} = \beta_0 + \beta_1 \, X_\mathrm{less} + \beta_2 \, X_\mathrm{eq} + \beta_3 \, X_\mathrm{more} + \beta_4 \, X_\mathrm{much\_more}$$
+
+
+---
+
+# What's missing? ANOVA!
+
+Software turns categories of *physactive* into five 0/1 variables
+
+```{r}
+
+glu.lm5 <- lm(glucose ~ physactive, data = hers_no_diab)
+
+df5 <- data.frame(model.matrix(glu.lm5)[1:6, ])
+names(df5) <- c("Intercept", "less", "equal", "more", "much_more")
+
+df5 <- data.frame(physactive = hers_no_diab$physactive[1:6], df5)
+
+knitr::kable(df5, format = "html")
+             
+```
+
+
+---
+
+# What's missing? ANOVA!
+
+
+```{r}
+
+## Repeated model call
+
+glu.lm5 <- lm(glucose ~ physactive, data = hers_no_diab)
+
+round(summary(glu.lm5)$coef[ , -c(4:5)], digits = 3)
+
+```
+
+
+*Fitted model*
+
+$$\small \mathrm{glucose} = 98.42 - 0.86 \, X_\mathrm{less} - 1.21 \, X_\mathrm{eq} - 2.36 \, X_\mathrm{more} - 3.28 \, X_\mathrm{much\_more}$$
+
+
+---
+
+# What's missing? ANOVA!
+
+*Fitted model*
+
+$$\small \mathrm{glucose} = 98.42 - 0.86 \, X_\mathrm{less} - 1.21 \, X_\mathrm{eq} - 2.36 \, X_\mathrm{more} - 3.28 \, X_\mathrm{much\_more}$$
+
+
+```{r}
+
+glu5.emm <- as.data.frame(emmeans(glu.lm5, ~ physactive))
+
+glu5.means <- round(glu5.emm$emmean, digits = 1)
+
+
+Activity <- c("much_less", "less", "equal", "more", "much_more")
+
+Mean_glucose <- c("98.42", "98.42 - 0.86", "98.42 - 1.21",
+                  "98.42 - 2.36", "98.42 - 3.28")
+
+Fitted_mean <- glu5.means
+
+glu5_out <- data.frame(Activity, Mean_glucose, Fitted_mean)
+
+names(glu5_out) <- c("Activity", "Mean calc.", "Fitted mean")
+
+knitr::kable(glu5_out, format = "html")
+
+```
+
+
+---
+
+# Linear models
+
+
+**They're all the same type of model - a linear model!**
+
+
+```{r}
+
+{{wordcloud(words = words_df[ , 1], freq = words_df[ , 2],
+          colors = brewer.pal(6, "Dark2"),
+          random.color = T,
+          scale = c(3, 1), rot.per = 1/4)}}
+
+```
+
+
+---
+
+
 # References
 
 Hulley, S. et al, 1998, Randomized trial of estrogen plus progestin for secondary prevention of coronary heart disease in postmenopausal women, *Journal of the American Medical Association* 280(7) 605-613
+
+Vittinghoff, E., 2012, *Regression Methods in Biostatistics*, Springer, 2nd ed. (https://regression.ucsf.edu)
