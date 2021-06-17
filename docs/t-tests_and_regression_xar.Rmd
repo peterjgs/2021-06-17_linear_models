@@ -368,16 +368,16 @@ suppressMessages(print(glu1_p4))
 # What is "linear"?
 
 - "Linear" means straight line. No argument!
-- Linear regression model means right-hand side of equation is a linear combination of predictors (i.e. pattern is: *parameter1* $\times$ *predictor1* + *parameter2* $\times$ *predictor2* + ... )
+- Linear regression model means right-hand side of equation is a linear combination of parameters (i.e. pattern is: *parameter1* $\times$ *predictor1* + *parameter2* $\times$ *predictor2* + ... )
 
 - Both these are linear models:
 
 $$\small \mathrm{glucose} =  \beta_0 + \beta_1 \, \mathrm{BMI}$$
 $$\small \mathrm{glucose} =  \beta_0 + \beta_1 \, \mathrm{BMI}+ \beta_2 \, \mathrm{BMI}^2$$
 
-- This is not a linear model:
+- This model for (losing) weight over time is not a linear model:
 
-$$\small \mathrm{glucose} =  \beta_0 \, \mathrm{BMI}^{\, \beta_1}$$
+$$\small \mathrm{weight} =  \beta_0 + \beta_1 \, 2^{-t/\beta_2}$$
 
 
 ---
